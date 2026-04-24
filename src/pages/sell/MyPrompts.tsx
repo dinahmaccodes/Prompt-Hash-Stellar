@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useWallet } from "@/hooks/useWallet";
+import { invalidateAllPromptQueries } from "@/hooks/useContractSync";
 import { browserStellarConfig } from "@/lib/stellar/browserConfig";
 import {
   setPromptSaleStatus,
@@ -74,6 +75,7 @@ const MyPrompts = () => {
       queryClient.invalidateQueries({ queryKey: ["prompt-access"] }),
     ]);
   };
+  const refreshPromptLists = () => invalidateAllPromptQueries(queryClient);
 
   const updateStatus = (message: string) => {
     setErrorMessage(null);
@@ -263,6 +265,17 @@ const MyPrompts = () => {
                         XLM
                       </div>
                     </div>
+                    <Input
+                      aria-label={`Price for ${prompt.title}`}
+                      value={mergedDrafts[prompt.id.toString()]}
+                      onChange={(event) =>
+                        setPriceDrafts((current) => ({
+                          ...current,
+                          [prompt.id.toString()]: event.target.value,
+                        }))
+                      }
+                      className="border-white/10 bg-white/5 text-slate-100"
+                    />
                     <Button
                       className="bg-emerald-500 text-slate-950 hover:bg-emerald-400"
                       onClick={() => void handleUpdatePrice(prompt.id)}
