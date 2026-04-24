@@ -3162,7 +3162,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@stellar/stellar-sdk@npm:^13.3.0, @stellar/stellar-sdk@npm:^14.2.0":
+"@stellar/stellar-sdk@npm:14.6.1":
   version: 14.6.1
   resolution: "@stellar/stellar-sdk@npm:14.6.1"
   dependencies:
