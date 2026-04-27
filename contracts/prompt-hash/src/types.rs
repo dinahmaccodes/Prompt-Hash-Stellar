@@ -38,6 +38,7 @@ pub enum DataKey {
     Reentrancy,
 }
 
+
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Prompt {
