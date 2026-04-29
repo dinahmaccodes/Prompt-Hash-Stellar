@@ -4,7 +4,7 @@ use crate::contract::{PromptHashContract, PromptHashContractClient};
 use crate::mock_asset::FungibleTokenContract;
 use crate::types::Error;
 extern crate std;
-use soroban_sdk::{testutils::{Address as _, Ledger}, token, Address, BytesN, Env, String};
+use soroban_sdk::{testutils::{Address as _, Ledger}, token, Address, Bytes, BytesN, Env, String};
 
 #[derive(Clone, Debug, PartialEq)]
 struct PromptHashContext {
@@ -127,8 +127,8 @@ fn test_buy_prompt_grants_access_to_multiple_buyers_and_tracks_exact_fees() {
     let seller_start = xlm_client.balance(&creator);
     let fee_start = xlm_client.balance(&context.fee_wallet);
 
-    client.buy_prompt(&buyer_one, &prompt_id);
-    client.buy_prompt(&buyer_two, &prompt_id);
+    client.buy_prompt(&buyer_one, &prompt_id, &None::<Address>, &12_345i128, &None::<Bytes>);
+    client.buy_prompt(&buyer_two, &prompt_id, &None::<Address>, &12_345i128, &None::<Bytes>);
 
     let prompt = client.get_prompt(&prompt_id);
     assert_eq!(prompt.sales_count, 2);
@@ -164,7 +164,7 @@ fn test_has_access_is_true_for_creator_and_buyer_but_not_stranger() {
     assert!(!client.has_access(&stranger, &prompt_id));
 
     fund_buyer(&xlm_client, &buyer, &context.contract, 100_000);
-    client.buy_prompt(&buyer, &prompt_id);
+    client.buy_prompt(&buyer, &prompt_id, &None::<Address>, &8_000i128, &None::<Bytes>);
 
     assert!(client.has_access(&buyer, &prompt_id));
     assert!(!client.has_access(&stranger, &prompt_id));
@@ -183,7 +183,7 @@ fn test_get_prompts_by_creator_and_buyer() {
     create_prompt(&env, &client, &creator, "Prompt B", 9_000);
 
     fund_buyer(&xlm_client, &buyer, &context.contract, 100_000);
-    client.buy_prompt(&buyer, &prompt_a);
+    client.buy_prompt(&buyer, &prompt_a, &None::<Address>, &8_000i128, &None::<Bytes>);
 
     assert_eq!(client.get_prompts_by_creator(&creator).len(), 2);
     assert_eq!(client.get_prompts_by_buyer(&buyer).len(), 1);
@@ -201,9 +201,9 @@ fn test_duplicate_purchase_returns_typed_error() {
     let prompt_id = create_prompt(&env, &client, &creator, "One License", 4_000);
 
     fund_buyer(&xlm_client, &buyer, &context.contract, 100_000);
-    client.buy_prompt(&buyer, &prompt_id);
+    client.buy_prompt(&buyer, &prompt_id, &None::<Address>, &4_000i128, &None::<Bytes>);
 
-    let duplicate_purchase = client.try_buy_prompt(&buyer, &prompt_id);
+    let duplicate_purchase = client.try_buy_prompt(&buyer, &prompt_id, &None::<Address>, &4_000i128, &None::<Bytes>);
     match duplicate_purchase {
         Err(Ok(error)) => assert_eq!(error, Error::AlreadyPurchased),
         other => panic!("unexpected duplicate purchase result: {:?}", other),
@@ -219,7 +219,7 @@ fn test_creator_cannot_buy_own_prompt() {
     let creator = Address::generate(&env);
     let prompt_id = create_prompt(&env, &client, &creator, "Creator Lockout", 4_000);
 
-    let result = client.try_buy_prompt(&creator, &prompt_id);
+    let result = client.try_buy_prompt(&creator, &prompt_id, &None::<Address>, &4_000i128, &None::<Bytes>);
     match result {
         Err(Ok(error)) => assert_eq!(error, Error::CreatorCannotBuy),
         other => panic!("unexpected creator purchase result: {:?}", other),
@@ -240,7 +240,7 @@ fn test_inactive_prompt_cannot_be_bought() {
     fund_buyer(&xlm_client, &buyer, &context.contract, 100_000);
     client.set_prompt_sale_status(&creator, &prompt_id, &false);
 
-    let result = client.try_buy_prompt(&buyer, &prompt_id);
+    let result = client.try_buy_prompt(&buyer, &prompt_id, &None::<Address>, &4_000i128, &None::<Bytes>);
     match result {
         Err(Ok(error)) => assert_eq!(error, Error::PromptInactive),
         other => panic!("unexpected inactive prompt result: {:?}", other),
@@ -267,7 +267,7 @@ fn test_buy_prompt_with_zero_fee() {
     let seller_start = xlm_client.balance(&creator);
     let fee_start = xlm_client.balance(&context.fee_wallet);
 
-    client.buy_prompt(&buyer, &prompt_id);
+    client.buy_prompt(&buyer, &prompt_id, &None::<Address>, &price, &None::<Bytes>);
 
     assert_eq!(xlm_client.balance(&creator), seller_start + price);
     assert_eq!(xlm_client.balance(&context.fee_wallet), fee_start);
@@ -293,7 +293,7 @@ fn test_buy_prompt_with_max_fee() {
     let seller_start = xlm_client.balance(&creator);
     let fee_start = xlm_client.balance(&context.fee_wallet);
 
-    client.buy_prompt(&buyer, &prompt_id);
+    client.buy_prompt(&buyer, &prompt_id, &None::<Address>, &price, &None::<Bytes>);
 
     assert_eq!(xlm_client.balance(&creator), seller_start);
     assert_eq!(xlm_client.balance(&context.fee_wallet), fee_start + price);
@@ -331,7 +331,7 @@ fn test_buy_nonexistent_prompt_fails() {
     let client = PromptHashContractClient::new(&env, &context.contract);
     let buyer = Address::generate(&env);
 
-    let result = client.try_buy_prompt(&buyer, &999_999);
+    let result = client.try_buy_prompt(&buyer, &999_999, &None::<Address>, &1_000i128, &None::<Bytes>);
     match result {
         Err(Ok(Error::PromptNotFound)) => {},
         other => panic!("expected PromptNotFound for nonexistent prompt, got {:?}", other),
@@ -356,7 +356,7 @@ fn test_arithmetic_safety_for_massive_prices() {
     fund_buyer(&xlm_client, &buyer, &context.contract, massive_price);
 
     // This should not panic and should calculate fees correctly
-    client.buy_prompt(&buyer, &prompt_id);
+    client.buy_prompt(&buyer, &prompt_id, &None::<Address>, &massive_price, &None::<Bytes>);
     
     let fee_bps = 500i128;
     let expected_fee = massive_price * fee_bps / 10_000;
@@ -374,7 +374,7 @@ fn test_global_pause_blocks_mutations_but_not_reads() {
     let creator = Address::generate(&env);
 
     client.set_pause_status(&true);
-    assert!(client.get_pause_status());
+    assert!(client.is_paused());
 
     let create_res = client.try_create_prompt(
         &creator,
@@ -389,8 +389,8 @@ fn test_global_pause_blocks_mutations_but_not_reads() {
         &10_000,
     );
     match create_res {
-        Err(Ok(Error::ContractPaused)) => {}
-        other => panic!("expected ContractPaused for create_prompt, got {:?}", other),
+        Err(Ok(Error::ContractIsPaused)) => {}
+        other => panic!("expected ContractIsPaused for create_prompt, got {:?}", other),
     }
 
     client.set_pause_status(&false);
