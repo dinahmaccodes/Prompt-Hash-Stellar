@@ -2,8 +2,9 @@ import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Eye, Loader2, LockKeyhole, AlertCircle, RefreshCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { useWallet } from "@/hooks/useWallet";
 import { invalidateAllPromptQueries } from "@/hooks/useContractSync";
 import { browserStellarConfig } from "@/lib/stellar/browserConfig";
@@ -11,7 +12,11 @@ import {
   setPromptSaleStatus,
   updatePromptPrice,
 } from "@/lib/stellar/promptHashClient";
-import { formatPriceLabel, stroopsToXlmString, xlmToStroops } from "@/lib/stellar/format";
+import {
+  formatPriceLabel,
+  stroopsToXlmString,
+  xlmToStroops,
+} from "@/lib/stellar/format";
 import { unlockPromptContent } from "@/lib/prompts/unlock";
 import { useDashboard } from "@/hooks/useDashboard";
 
@@ -48,7 +53,32 @@ const ErrorState = ({ message, onRetry }: { message: string; onRetry: () => void
   </div>
 );
 
-const MyPrompts = () => {
+// ── Toast-style feedback ──────────────────────────────────────────────────────
+function Feedback({
+  status,
+  error,
+}: {
+  status: string | null;
+  error: string | null;
+}) {
+  if (!status && !error) return null;
+  if (status)
+    return (
+      <div className="flex items-center gap-2 rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
+        <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
+        {status}
+      </div>
+    );
+  return (
+    <div className="flex items-center gap-2 rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+      <AlertCircle className="h-4 w-4 shrink-0 text-red-400" />
+      {error}
+    </div>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
+const MyPrompts = ({ onCreateNew }: Props) => {
   const queryClient = useQueryClient();
   const { signMessage, signTransaction } = useWallet();
   const { address, created, purchased, refresh } = useDashboard();
@@ -57,7 +87,9 @@ const MyPrompts = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [busyPromptId, setBusyPromptId] = useState<string | null>(null);
   const [priceDrafts, setPriceDrafts] = useState<Record<string, string>>({});
-  const [unlockedPrompts, setUnlockedPrompts] = useState<Record<string, string>>({});
+  const [unlockedPrompts, setUnlockedPrompts] = useState<
+    Record<string, string>
+  >({});
 
   const mergedDrafts = useMemo(() => {
     return Object.fromEntries(
@@ -77,13 +109,12 @@ const MyPrompts = () => {
   };
   const refreshPromptLists = () => invalidateAllPromptQueries(queryClient);
 
-  const updateStatus = (message: string) => {
+  const ok = (msg: string) => {
     setErrorMessage(null);
     setStatusMessage(message);
     setTimeout(() => setStatusMessage(null), 5000);
   };
-
-  const updateError = (message: string) => {
+  const err = (msg: string) => {
     setStatusMessage(null);
     setErrorMessage(message);
     setTimeout(() => setErrorMessage(null), 5000);
@@ -91,10 +122,9 @@ const MyPrompts = () => {
 
   const handleToggleSaleStatus = async (promptId: bigint, active: boolean) => {
     if (!address || !signTransaction) {
-      updateError("Connect a wallet before changing prompt status.");
+      err("Connect a wallet before changing prompt status.");
       return;
     }
-
     setBusyPromptId(promptId.toString());
     try {
       await setPromptSaleStatus(
@@ -104,10 +134,10 @@ const MyPrompts = () => {
         promptId,
         !active,
       );
-      updateStatus(!active ? "Prompt reactivated." : "Prompt deactivated.");
-      await refreshPromptLists();
-    } catch (error) {
-      updateError(error instanceof Error ? error.message : "Failed to update sale status.");
+      ok(!active ? "Listing reactivated." : "Listing paused.");
+      await refreshAll();
+    } catch (e) {
+      err(e instanceof Error ? e.message : "Failed to update sale status.");
     } finally {
       setBusyPromptId(null);
     }
@@ -115,10 +145,9 @@ const MyPrompts = () => {
 
   const handleUpdatePrice = async (promptId: bigint) => {
     if (!address || !signTransaction) {
-      updateError("Connect a wallet before updating prompt prices.");
+      err("Connect a wallet before updating prices.");
       return;
     }
-
     setBusyPromptId(promptId.toString());
     try {
       const nextPrice = xlmToStroops(mergedDrafts[promptId.toString()]);
@@ -129,10 +158,10 @@ const MyPrompts = () => {
         promptId,
         nextPrice,
       );
-      updateStatus("Prompt price updated.");
-      await refreshPromptLists();
-    } catch (error) {
-      updateError(error instanceof Error ? error.message : "Failed to update price.");
+      ok("Price updated.");
+      await refreshAll();
+    } catch (e) {
+      err(e instanceof Error ? e.message : "Failed to update price.");
     } finally {
       setBusyPromptId(null);
     }
@@ -140,25 +169,29 @@ const MyPrompts = () => {
 
   const handleUnlock = async (promptId: bigint) => {
     if (!address || !signMessage) {
-      updateError("Connect a wallet with SEP-43 message signing to unlock prompts.");
+      err("Connect a wallet with SEP-43 message signing to unlock prompts.");
       return;
     }
-
     setBusyPromptId(promptId.toString());
     try {
-      const response = await unlockPromptContent(address, promptId, signMessage);
-      setUnlockedPrompts((current) => ({
-        ...current,
+      const response = await unlockPromptContent(
+        address,
+        promptId,
+        signMessage,
+      );
+      setUnlockedPrompts((prev) => ({
+        ...prev,
         [promptId.toString()]: response.plaintext,
       }));
-      updateStatus("Prompt unlocked.");
-    } catch (error) {
-      updateError(error instanceof Error ? error.message : "Failed to unlock prompt.");
+      ok("Prompt unlocked.");
+    } catch (e) {
+      err(e instanceof Error ? e.message : "Failed to unlock prompt.");
     } finally {
       setBusyPromptId(null);
     }
   };
 
+  // ── Not connected ───────────────────────────────────────────────────────────
   if (!address) {
     return (
       <EmptyState message="Connect your Stellar wallet to manage created and purchased prompts." />
@@ -408,10 +441,10 @@ const MyPrompts = () => {
                         Unlocked plaintext appears here after the access check succeeds.
                       </p>
                     </div>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         )}
       </section>
