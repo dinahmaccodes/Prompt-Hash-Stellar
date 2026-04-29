@@ -366,7 +366,6 @@ fn test_arithmetic_safety_for_massive_prices() {
     assert_eq!(xlm_client.balance(&context.fee_wallet), expected_fee);
 }
 
-<<<<<<< HEAD
 #[test]
 fn test_global_pause_blocks_mutations_but_not_reads() {
     let env: Env = Default::default();
@@ -404,18 +403,11 @@ fn test_global_pause_blocks_mutations_but_not_reads() {
 
 #[test]
 fn test_lease_prompt_grants_temporary_access_and_expires() {
-=======
-// ─── Issue #105: Referral & Affiliate Commission System ───────────────────────
-
-#[test]
-fn test_buy_prompt_with_referrer_splits_payment_correctly() {
->>>>>>> 8ad0061 (test: add tests for referral, pause, tipping, and voucher features)
     let env: Env = Default::default();
     let context = setup(&env);
     let client = PromptHashContractClient::new(&env, &context.contract);
     let xlm_client = token::StellarAssetClient::new(&env, &context.xlm);
 
-<<<<<<< HEAD
     env.ledger().with_mut(|ledger| {
         ledger.timestamp = 1_000;
     });
@@ -432,7 +424,17 @@ fn test_buy_prompt_with_referrer_splits_payment_correctly() {
         ledger.timestamp = 1_700;
     });
     assert!(!client.has_access(&buyer, &prompt_id));
-=======
+}
+
+// ─── Issue #105: Referral & Affiliate Commission System ───────────────────────
+
+#[test]
+fn test_buy_prompt_with_referrer_splits_payment_correctly() {
+    let env: Env = Default::default();
+    let context = setup(&env);
+    let client = PromptHashContractClient::new(&env, &context.contract);
+    let xlm_client = token::StellarAssetClient::new(&env, &context.xlm);
+
     // Set referral to 5% (500 BPS)
     client.set_referral_percentage(&500);
 
@@ -925,5 +927,4 @@ fn test_voucher_with_referrer_combined() {
     assert_eq!(xlm_client.balance(&context.fee_wallet), fee_start + expected_fee);
     assert_eq!(xlm_client.balance(&referrer), referrer_start + expected_referral);
     assert!(client.has_access(&buyer, &prompt_id));
->>>>>>> 8ad0061 (test: add tests for referral, pause, tipping, and voucher features)
 }
