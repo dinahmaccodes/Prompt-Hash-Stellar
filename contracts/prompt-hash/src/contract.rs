@@ -479,7 +479,11 @@ fn validate_prompt_fields(
         MAX_ENCRYPTED_PROMPT_LEN,
         Error::InvalidEncryptedPromptLength,
     )?;
-    validate_len(wrapped_key, MAX_WRAPPED_KEY_LEN, Error::InvalidWrappedKeyLength)?;
+    validate_len(
+        wrapped_key,
+        MAX_WRAPPED_KEY_LEN,
+        Error::InvalidWrappedKeyLength,
+    )?;
     validate_len(encryption_iv, MAX_IV_LEN, Error::InvalidIvLength)?;
     Ok(())
 }

@@ -33,7 +33,9 @@ impl Storage {
 
         let counter_key = DataKey::PromptCounter;
         let next_prompt_id = prompt.id.checked_add(1).ok_or(Error::ArithmeticOverflow)?;
-        env.storage().persistent().set(&counter_key, &next_prompt_id);
+        env.storage()
+            .persistent()
+            .set(&counter_key, &next_prompt_id);
         Self::extend_key_ttl(env, &counter_key);
         Ok(())
     }
