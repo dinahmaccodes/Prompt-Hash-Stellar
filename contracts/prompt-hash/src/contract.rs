@@ -164,7 +164,10 @@ impl PromptHashTrait for PromptHashContract {
 
         // Enforce max supply (0 = unlimited)
         if prompt.max_supply > 0 {
-            ensure(prompt.sales_count < prompt.max_supply, Error::MaxSupplyReached)?;
+            ensure(
+                prompt.sales_count < prompt.max_supply,
+                Error::MaxSupplyReached,
+            )?;
         }
 
         // Apply voucher discount if provided

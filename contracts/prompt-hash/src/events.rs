@@ -137,11 +137,7 @@ impl Events {
         .publish(env);
     }
 
-    pub fn emit_voucher_removed(
-        env: &Env,
-        prompt_id: u128,
-        hashed_code: soroban_sdk::BytesN<32>,
-    ) {
+    pub fn emit_voucher_removed(env: &Env, prompt_id: u128, hashed_code: soroban_sdk::BytesN<32>) {
         VoucherRemoved {
             prompt_id,
             hashed_code,
